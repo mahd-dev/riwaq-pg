@@ -12,6 +12,8 @@ services:
       - "max_wal_senders=10"
       - "-c"
       - "max_replication_slots=10"
+      - "-c"
+      - "log_min_messages=fatal"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
