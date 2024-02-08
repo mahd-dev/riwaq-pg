@@ -1,9 +1,11 @@
 version: '3'
 
 services:
-  postgres:
+  pg-master:
+    container_name: "${COMPOSE_PROJECT_NAME:-pg}-master"
     image: dmed/riwaq-pg-realtime-postgres
-    container_name: postgres
+    ports: ["${PG_EXTERNAL_PORT:-5432}:5432"]
+    labels: ["com.citusdata.role=Master"]
     command:
       - "postgres"
       - "-c"
@@ -12,14 +14,32 @@ services:
       - "max_wal_senders=10"
       - "-c"
       - "max_replication_slots=10"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: change-me
-      POSTGRES_DB: postgres
+      - "-c"
+      - "log_min_messages=fatal"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "2345:5432"
+    environment: &AUTH
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      PGUSER: "${POSTGRES_USER:-postgres}"
+      PGPASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST_AUTH_METHOD: "${POSTGRES_HOST_AUTH_METHOD:-trust}"
+  pg-worker:
+    image: dmed/riwaq-pg-realtime-postgres
+    labels: ["com.citusdata.role=Worker"]
+    depends_on: [manager]
+    environment: *AUTH
+    command: "/wait-for-manager.sh"
+    volumes:
+      - healthcheck-volume:/healthcheck
+  pg-manager:
+    container_name: "${COMPOSE_PROJECT_NAME:-pg}-manager"
+    image: "citusdata/membership-manager:0.3.0"
+    volumes:
+      - "${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock"
+      - healthcheck-volume:/healthcheck
+    depends_on: [master]
+    environment: *AUTH
 
   riwaq-pg:
     image: dmed/riwaq-pg-server
