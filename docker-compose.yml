@@ -1,4 +1,4 @@
-version: '3'
+name: riwaq-pg
 
 services:
   postgres:
